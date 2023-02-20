@@ -1,180 +1,79 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
+import os
+import argparse
+from time import time
+from sqlalchemy import create_engine
 import pandas as pd
 
-
-# In[2]:
-
-
-pd.__version__
-
-
-# In[3]:
-
-
-# df = pd.read_csv('2021_Yellow_Taxi_Trip_Data.csv', nrows=100)
-df = pd.read_csv('yellow_taxi_trip_data_reduced.csv')
-
-
-# In[4]:
-
-
-df
-
-
-# In[5]:
-
-
-# df = pd.read_csv('2021_Yellow_Taxi_Trip_Data.csv', nrows=400000)b
-
-
-# In[6]:
-
-
-# df.to_csv('yellow_taxi_trip_data_reduced.csv')
-
-
-# In[7]:
-
-
-# what we can do next take this dataset and put it to our posgtres database
-# for that what we need firs we have to generate schema like create table
-
-
-# In[8]:
-
-
-df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
-df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
-
-
-# In[9]:
-
-
-print(pd.io.sql.get_schema(df, name='yellow_taxi_data'))
-
-
-# In[25]:
-
-
-import sqlalchemy
-sqlalchemy.__version__
-
-
-# In[10]:
-
-
-from sqlalchemy import create_engine
-
-
-# In[11]:
-
-
-engine = create_engine('postgresql://root:root@localhost:5432/ny_taxi')
-
-
-# In[12]:
-
-
-engine.connect()
-
-
-# In[13]:
-
-
-# print(pd.io.sql.get_schema(df, name='yellow_taxi_data', con=engine))
-
-
-# In[14]:
-
-
-df_iter = pd.read_csv('yellow_taxi_trip_data_reduced.csv', iterator=True, chunksize=100000)
-
-
-# In[15]:
-
-
-df_iter
-# it show this is not a data frame it is an iterator
-
-
-# In[16]:
-
-
-df = next(df_iter)
-
-
-# In[17]:
-
-
-len(df)
-
-
-# In[18]:
-
-
-df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
-df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
-
-
-# In[19]:
-
-
-df
-
-
-# In[20]:
-
-
-# insert data to the database, first it will create table and then
-# insert all the datas
-
-
-# In[21]:
-
-
-# class TeradataCompiler:
-#     def __init__(self, dialect, statement, **kwargs):
-#         super(TeradataCompiler, self).__init__(dialect, statement, **kwargs)
-
-
-
-# In[22]:
-
-
-get_ipython().run_line_magic('time', "df.to_sql(name='yellow_taxi_data', con=engine, if_exists='replace')")
-         
-
-
-# In[27]:
-
-
-from time import time
-
-
-# In[28]:
-
-
-while True:
-    
-    t_start = time()
-    
+def main(params):
+
+    user = params.user
+    password = params.password
+    host = params.host
+    port = params.port
+    db = params.db
+    table_name = params.table_name
+    url = params.url
+
+    if url.endswith('.csv.gz'):
+        csv_name = 'output.csv.gz'
+    else:
+        csv_name = 'output.csv'
+
+    # download the csv
+    os.system(f"wget {url} -O {csv_name}")
+
+    engine = create_engine(f'postgresql://{user}:{password}@{host}:{port}/{db}')
+    df_iter = pd.read_csv(csv_name, iterator=True, encoding='utf-8', chunksize=100000)
     df = next(df_iter)
     
+
     df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
     df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
-    
-    df.to_sql(name='yellow_taxi_data', con=engine, if_exists='append')
-    
-    t_end = time()
-    print('inserted another chunk...., took %.3f second' %(t_end - t_start))
+
+    df.head(n=0).to_sql(name=table_name, con=engine, if_exists='replace')
+
+    df.to_sql(name=table_name, con=engine, if_exists='append')
+
+    while True:
+        try:
+        
+            t_start = time()
+            
+            df = next(df_iter)
+            
+            df.tpep_pickup_datetime = pd.to_datetime(df.tpep_pickup_datetime)
+            df.tpep_dropoff_datetime = pd.to_datetime(df.tpep_dropoff_datetime)
+            
+            df.to_sql(name=table_name, con=engine, if_exists='append')
+            
+            t_end = time()
+
+            print('inserted another chunk...., took %.3f second' %(t_end - t_start))
+
+        except StopIteration:
+            print("finished ingesting data into the postgres database")
+            break
 
 
-# In[ ]:
+
+if __name__ =="__main__":
+
+    parser = argparse.ArgumentParser(description='ingest csv data to postgres')
+
+    parser.add_argument('--user', help='user name for postgres')
+    parser.add_argument('--password', help='password for postgres')
+    parser.add_argument('--host', help='host for postgres')
+    parser.add_argument('--port', help='port for postgres')
+    parser.add_argument('--db', help='database name for postgres')
+    parser.add_argument('--table_name', help='name of the table where we will write the results to')
+    parser.add_argument('--url', help='url of the csv file')
+
+    args = parser.parse_args()
+
+    main(args)
 
 
 
