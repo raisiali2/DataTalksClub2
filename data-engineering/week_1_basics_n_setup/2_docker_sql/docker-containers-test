@@ -42,6 +42,7 @@ docker run -it \
 
 
 URL="https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow/yellow_tripdata_2021-01.csv"
+# URL="https://s3.amazonaws.com/nyc-tlc/misc/taxi+_zone_lookup.csv"
 
 python3 ingest_data.py \
   --network=2_docker_sql_default \
