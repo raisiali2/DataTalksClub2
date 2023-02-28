@@ -1,0 +1,30 @@
+# we can specify the version but no neccessary
+# the services we use there are two pagdatabse and pgadmin
+services:
+  pgdatabase:
+  # for pgdatabase we need to specify the image
+    image: postgres:13
+  # need to specify the environment
+    environment:
+      - POSTGRES_USER="root"
+      - POSTGRES_PASSWORD="root"
+      - POSTGRES_DB="ny_taxi"
+    # need also to do volume mapping
+    volumes:
+      # in docker compose you dont need to specify the full path
+      - "./ny_taxi_postgres_data:/var/lib/postgresql/data:rw"
+    # for accessing the port we need also to set
+    ports:
+      # first is host port map it to the container port
+      - "5432:5432"
+
+  pgadmin:
+  # the same above need tho specify image
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=root
+    volumes:
+      - "./data_pgadmin:/var/lib/pgadmin"
+    ports:
+      - "8080:80"
