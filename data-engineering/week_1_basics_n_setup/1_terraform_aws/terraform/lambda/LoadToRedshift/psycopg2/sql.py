@@ -1,0 +1,2 @@
+"""SQL composition utility module
+"""
